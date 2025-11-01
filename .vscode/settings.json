@@ -38,6 +38,7 @@
         "ratio": "cpp",
         "print": "cpp",
         "sstream": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "thread": "cpp"
     }
 }

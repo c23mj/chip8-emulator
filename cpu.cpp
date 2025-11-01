@@ -1,46 +1,37 @@
+#include "cpu.hpp"
 #include <vector>
 #include <stack>
 #include <thread>
 #include <chrono> 
 #include <span>
-#include "constants.hpp"
+using byte = uint8_t; // ensure unsigned
 
-using byte = uint8_t;
-class CPU{
-public:
-    CPU(){
-        loadFontToMemory();
+CPU::CPU()
+: window("CHIP-8", (int)constants::DisplayWidth, (int)constants::DisplayHeight) {
+    loadFontToMemory();
+}
+
+void CPU::boot(std::vector<byte>& program){
+    loadProgram(program);
+    pc = constants::ProgramStart;
+    while (window.alive()) {  // optional: exit when user quits
+        const uint16_t instruction = fetch();
+        decodeAndExecute(instruction);
+        std::this_thread::sleep_for(std::chrono::nanoseconds(1'000'000'000 / 700));
     }
+}
 
-    void boot(std::vector<byte>& program){
-        loadProgram(program);
-        pc = constants::ProgramStart;
-        while(true){
-            uint16_t instruction = fetch();
-            decodeAndExecute(instruction);
-            std::this_thread::sleep_for(std::chrono::nanoseconds(1'000'000'000 / 700));
-        }
-    }
+std::uint16_t CPU::fetch(){
+    uint16_t opcode = memory[pc] << 8 | memory[pc + 1];
+    pc += 2;
+    return opcode;
+}
 
+std::size_t CPU::displayIndex(std::size_t x, std::size_t y){
+    return y * constants::DisplayWidth + x;
+}
 
-
-private:
-    std::array<byte, constants::MemorySize> memory{};
-    std::array<uint8_t, constants::DisplayWidth * constants::DisplayHeight> display{};
-    std::array<byte, 16> registers{};
-    uint16_t i;
-    uint16_t pc;
-    std::stack<uint16_t> stack;
-
-    uint16_t fetch(){
-        uint16_t opcode = memory[pc] << 8 | memory[pc + 1];
-        pc += 2;
-        return opcode;
-    }
-    size_t displayIndex(size_t x, size_t y){
-        return y * constants::DisplayWidth + x;
-    }
-    void decodeAndExecute(uint16_t opcode){
+void CPU::decodeAndExecute(uint16_t opcode){
         byte x = (opcode & 0x0F00) >> 8;
         byte y = (opcode & 0x00F0) >> 4;
         byte n = opcode & 0x000F;
@@ -111,19 +102,20 @@ private:
                     }
                     y++;
                 }      
+                window.draw(display);
                 break;
-            case 0xE000:
-                break;
-            case 0xF000:
-                break;
+            // case 0xE000:
+            //     break;
+            // case 0xF000:
+            //     break;
         }
-    } 
-  
-    void loadFontToMemory(){
-        std::copy(std::begin(constants::Font), std::end(constants::Font), memory.begin() + 0x50);
-    }
-    void loadProgram(std::vector<byte>& program){
-        std::copy(program.begin(), program.end(), memory.begin() + constants::ProgramStart);
-    }
-};
+}
+
+void CPU::loadFontToMemory(){
+    std::copy(std::begin(constants::Font), std::end(constants::Font), memory.begin() + 0x50);
+}
+
+void CPU::loadProgram(std::vector<byte>& program){
+    std::copy(program.begin(), program.end(), memory.begin() + constants::ProgramStart);
+}
 

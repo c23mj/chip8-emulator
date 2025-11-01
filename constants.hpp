@@ -2,12 +2,14 @@
 #pragma once
 #include <cstddef>
 
+using byte = uint8_t;
+
 namespace constants {
     constexpr std::size_t MemorySize = 4096;
     constexpr std::size_t ProgramStart = 0x200;
     constexpr std::size_t DisplayWidth = 64;
     constexpr std::size_t DisplayHeight = 32;
-    const char Font[80] = {
+    const byte Font[80] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
