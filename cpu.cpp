@@ -47,6 +47,8 @@ void CPU::decodeAndExecute(uint16_t opcode){
                         display.fill(0);
                         break;
                     case 0x00EE:
+                        pc = stack.top();
+                        stack.pop();
                         break;
                     default:
                         unrecognized = true;
@@ -57,12 +59,17 @@ void CPU::decodeAndExecute(uint16_t opcode){
                 pc = nnn;
                 break;
             case 0x2000:
+                stack.push(pc);
+                pc = nnn;
                 break;
             case 0x3000:
+                skipNextIf(registers[x] == nn);
                 break;
             case 0x4000:
+                skipNextIf(registers[x] != nn);
                 break;
             case 0x5000:
+                skipNextIf(registers[x] == registers[y]);
                 break;
             case 0x6000:
                 registers[x] = nn;
@@ -71,37 +78,79 @@ void CPU::decodeAndExecute(uint16_t opcode){
                 registers[x] += nn;
                 break;
             case 0x8000:
+                switch(opcode && 0x000F) {
+                    case 0x0:
+                        registers[x] = registers[y];
+                        break;
+                    case 0x1:
+                        registers[x] |= registers[y];
+                        break;
+                    case 0x2:
+                        registers[x] &= registers[y];
+                        break;
+                    case 0x3:
+                        registers[x] ^= registers[y];
+                        break;
+                    case 0x4:  
+                        uint8_t sum = registers[x] + registers[y];
+                        if (sum < registers[x]) registers[0xF] = 1; // overflow
+                        registers[x] = sum;
+                        break;
+                    case 0x5:
+                        if (registers[x] > registers[y]) registers[0xF] = 1;
+                        registers[x] -= registers[y];
+                        break;
+                    case 0x6:
+                        registers[0xF] = registers[x] & 1;
+                        registers[x] >>= 1;
+                        break;
+
+                    case 0x7:
+                        if (registers[y] > registers[x]) registers[0xF] = 1;
+                        registers[y] -= registers[x];
+                        break;
+                    
+                    case 0xE:
+                        registers[0xF] = (registers[x] & (1 << 7)) >> 7;
+                        registers[x] >>= 1;
+                        break;
+                }
                 break;
             case 0x9000:
+                skipNextIf(registers[x] != registers[y]);
                 break;
             case 0xA000:
                 i = nnn;
                 break;
             case 0xB000:
+                pc = nnn + registers[0];
                 break;
             case 0xC000: 
                 break; 
             case 0xD000:
-                registers[x] &= 63;
-                registers[y] &= 31;
+                const uint8_t vx = registers[x] & 63;
+                const uint8_t vy = registers[y] & 31;
                 registers[0xF] = 0;
+
                 std::span<const byte> sprite{ memory.data() + i, static_cast<size_t>(n) };
-                
-                byte mask = 1 << 7;
-                for (auto byte : sprite) {
-                    if (y >= constants::DisplayHeight) break;
-                    for (size_t idx = 0; idx < 8; idx++) {
-                        if (x + idx >= constants::DisplayWidth) break;
-                        if (byte & mask) {
-                            if (display[displayIndex(x + idx, y)] == 1) {
-                                registers[0xF] = 1;
+
+                size_t py = vy;
+                for (byte sb : sprite) {
+                    uint8_t mask = 1 << 7;
+                    for (size_t idx = 0; idx < 8; ++idx, mask >>= 1) {
+                        if (sb & mask) {
+                            const std::size_t px = (vx + idx);
+                            if (px >= constants::DisplayWidth) break;
+                            const auto di = displayIndex(px, py);
+                            if (display[di] == 1) {
+                                registers[0xF] = 1; // collision
                             }
-                            display[displayIndex(x + idx, y)] ^= 1;
+                            display[di] ^= 1;
                         }
-                        mask >>= 1;
                     }
-                    y++;
-                }      
+                    if (++py >= constants::DisplayHeight) break;
+                }
+
                 window.draw(display);
                 break;
             // case 0xE000:
@@ -117,5 +166,11 @@ void CPU::loadFontToMemory(){
 
 void CPU::loadProgram(std::vector<byte>& program){
     std::copy(program.begin(), program.end(), memory.begin() + constants::ProgramStart);
+}
+
+void CPU::skipNextIf(bool cond){
+    if(cond) {
+        pc += 2;
+    }
 }
 

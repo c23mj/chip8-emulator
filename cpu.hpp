@@ -17,14 +17,17 @@ public:
     void boot(std::vector<byte>& program);
 
 private:
-    // Fetch next 2-byte opcode and advance PC
+    // Fetch next 2-byte opcode, advance PC
     std::uint16_t fetch();
 
-    // Flattened display index helper
+    // sends (x, y) coord to an index within the flattened display arr.
     std::size_t displayIndex(std::size_t x, std::size_t y);
 
     // Decode and execute one opcode
     void decodeAndExecute(std::uint16_t opcode);
+
+    // skips to next instr. if cond is true
+    void skipNextIf(bool cond);
 
     // Initialization helpers
     void loadFontToMemory();
