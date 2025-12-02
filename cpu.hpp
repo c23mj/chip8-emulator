@@ -6,6 +6,7 @@
 #include <cstdint>
 #include "constants.hpp"
 #include "sdl3/window.hpp" 
+#include "sdl3/input.hpp"
 
 using byte = std::uint8_t;
 
@@ -34,10 +35,15 @@ private:
     void loadProgram(std::vector<byte>& program);
 
 private:
+    void restart(std::vector<byte>& program);
     std::array<byte, constants::MemorySize> memory{};
     std::array<byte, constants::DisplayWidth * constants::DisplayHeight> display{};
     std::array<byte, 16> registers{};
+    std::array<uint8_t, 16> keypad;
     Window window;
+    InputHandler input;
+    std::uint8_t delay_timer{0};   
+    std::uint8_t sound_timer{0};
     std::uint16_t i{0};
     std::uint16_t pc{0};
     std::stack<std::uint16_t> stack;

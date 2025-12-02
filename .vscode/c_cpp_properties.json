@@ -3,20 +3,18 @@
         {
             "name": "Mac",
             "includePath": [
-                "${workspaceFolder}/**",
-                "/Users/michaeljiang/Library/Frameworks/SDL3.xcframework/macos-arm64_x86_64/SDL3.framework/Headers",
-                "/Users/michaeljiang/Library/Frameworks/**"
+                "${workspaceFolder}/**"
             ],
             "defines": [
                 "SDL3_USE_XCFRAMEWORK"
             ],
-            "compilerPath": "/opt/homebrew/opt/llvm/bin/clang",
             "cStandard": "c23",
             "cppStandard": "c++20",
             "intelliSenseMode": "macos-clang-arm64",
             "compilerArgs": [
                 "-F/Users/michaeljiang/Library/Frameworks/SDL3.xcframework/macos-arm64_x86_64"
-            ]
+            ],
+            "compilerPath": "/usr/bin/gcc"
         }
     ],
     "version": 4

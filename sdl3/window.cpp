@@ -40,24 +40,16 @@ Window::~Window() {
     }
 }
 
-bool Window::alive() const { return impl_ && !impl_->quit; }
+bool Window::alive() const {
+    return impl_ != nullptr;
+}
 
 bool Window::draw(std::span<const byte> bits) {
-    if (!impl_ || impl_->quit) return false;
+    if (!impl_) return false;
     const int gridW = impl_->gridW, gridH = impl_->gridH;
     if ((int)bits.size() != gridW * gridH) return false;
 
-    // 1) pump events so the window stays responsive
-    SDL_Event e;
-    while (SDL_PollEvent(&e)) {
-        if (e.type == SDL_EVENT_QUIT ||
-            (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_ESCAPE)) {
-            impl_->quit = true;
-            return false;
-        }
-    }
-
-    // 2) compute integer scale + centering (crisp pixels)
+    // 1) compute integer scale + centering (crisp pixels)
     int outW = 0, outH = 0;
     SDL_GetRenderOutputSize(impl_->ren, &outW, &outH);
     const int scale = std::max(1, std::min(outW / gridW, outH / gridH));
@@ -66,15 +58,13 @@ bool Window::draw(std::span<const byte> bits) {
     const int offX  = (outW - viewW) / 2;
     const int offY  = (outH - viewH) / 2;
 
-    // 3) clear + draw
+    // 2) clear + draw
     SDL_SetRenderDrawColor(impl_->ren, 0, 0, 0, 255);
     SDL_RenderClear(impl_->ren);
 
-    // black panel (letterbox)
     SDL_FRect panel { (float)offX, (float)offY, (float)viewW, (float)viewH };
     SDL_RenderFillRect(impl_->ren, &panel);
 
-    // white pixels
     SDL_SetRenderDrawColor(impl_->ren, 255, 255, 255, 255);
     SDL_FRect px; px.w = (float)scale; px.h = (float)scale;
     for (int y = 0; y < gridH; ++y) {

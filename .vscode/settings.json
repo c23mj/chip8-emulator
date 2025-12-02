@@ -39,6 +39,12 @@
         "print": "cpp",
         "sstream": "cpp",
         "span": "cpp",
-        "thread": "cpp"
-    }
+        "thread": "cpp",
+        "cwctype": "cpp",
+        "memory": "cpp",
+        "variant": "cpp",
+        "algorithm": "cpp",
+    },
+    "editor.formatOnSave": true
+
 }

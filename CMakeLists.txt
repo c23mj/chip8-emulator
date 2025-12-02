@@ -27,20 +27,20 @@ include_directories(${CMAKE_SOURCE_DIR})
 # =========================
 #   Executable: sdl_checkerboard
 # =========================
-add_executable(sdl_checkerboard
-    sdl3/checkerboard.cpp
-)
-target_link_libraries(sdl_checkerboard PRIVATE ${SDL3_LIB_TARGET})
-target_compile_definitions(sdl_checkerboard PRIVATE SDL_MAIN_USE_CALLBACKS=1)
+# add_executable(sdl_checkerboard
+#     sdl3/checkerboard.cpp
+# )
+# target_link_libraries(sdl_checkerboard PRIVATE ${SDL3_LIB_TARGET})
+# target_compile_definitions(sdl_checkerboard PRIVATE SDL_MAIN_USE_CALLBACKS=1)
 # If your checkerboard includes headers in sdl3/, the include_directories above already covers ${CMAKE_SOURCE_DIR}
 
 # =========================
 #   Executable: sdl_keypad
 # =========================
-add_executable(sdl_keypad
-    sdl3/keypad.cpp
-)
-target_link_libraries(sdl_keypad PRIVATE ${SDL3_LIB_TARGET})
+# add_executable(sdl_keypad
+#     sdl3/keypad.cpp
+# )
+# target_link_libraries(sdl_keypad PRIVATE ${SDL3_LIB_TARGET})
 
 # =========================
 #   Executable: chip8 (main + cpu)

@@ -12,16 +12,16 @@ struct InputEvent {
 class InputHandler {
 public:
     explicit InputHandler() {
-        // Nothing special here; caller must have called SDL_Init
+        // Assumes SDL_Init has already been called by Window.
     }
 
-    InputEvent poll() {
+    InputEvent poll(){
         InputEvent out{};
         out.quit = false;
         out.restart = false;
         out.keypad_state.fill(0);
 
-        // 1) Drain the SDL event queue
+        // 1) Drain SDL event queue here
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) {
@@ -37,23 +37,22 @@ public:
             return (sc < numKeys) && keys[sc];
         };
 
-        // --- CHIP-8 keypad mapping ---
-        // Row 1
+        // CHIP-8 keypad
         if (held(SDL_SCANCODE_1)) out.keypad_state[0x1] = 1;
         if (held(SDL_SCANCODE_2)) out.keypad_state[0x2] = 1;
         if (held(SDL_SCANCODE_3)) out.keypad_state[0x3] = 1;
         if (held(SDL_SCANCODE_4)) out.keypad_state[0xC] = 1;
-        // Row 2
+
         if (held(SDL_SCANCODE_Q)) out.keypad_state[0x4] = 1;
         if (held(SDL_SCANCODE_W)) out.keypad_state[0x5] = 1;
         if (held(SDL_SCANCODE_E)) out.keypad_state[0x6] = 1;
         if (held(SDL_SCANCODE_R)) out.keypad_state[0xD] = 1;
-        // Row 3
+
         if (held(SDL_SCANCODE_A)) out.keypad_state[0x7] = 1;
         if (held(SDL_SCANCODE_S)) out.keypad_state[0x8] = 1;
         if (held(SDL_SCANCODE_D)) out.keypad_state[0x9] = 1;
         if (held(SDL_SCANCODE_F)) out.keypad_state[0xE] = 1;
-        // Row 4
+
         if (held(SDL_SCANCODE_Z)) out.keypad_state[0xA] = 1;
         if (held(SDL_SCANCODE_X)) out.keypad_state[0x0] = 1;
         if (held(SDL_SCANCODE_C)) out.keypad_state[0xB] = 1;
@@ -65,4 +64,5 @@ public:
 
         return out;
     }
+
 };
