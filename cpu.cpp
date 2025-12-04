@@ -30,29 +30,47 @@ void CPU::restart(std::vector<byte>& program){
     loadFontToMemory();
     loadProgram(program);
 }
-
-
 void CPU::boot(std::vector<byte>& program) {
     loadProgram(program);
     pc = constants::ProgramStart;
 
+    using clock = std::chrono::steady_clock;
+    using duration = std::chrono::duration<double>;
+    
+    const auto timer_interval = std::chrono::duration<double>(1.0 / 60.0);
+    const auto cpu_interval = std::chrono::duration<double>(1.0 / 7000.0);
+    
+    auto last_timer_update = clock::now();
+
     while (window.alive()) {
-        // 1) Read input
+        auto cycle_start = clock::now();
+        
+        // Update timers at 60Hz
+        if (clock::now() - last_timer_update >= timer_interval) {
+            if (delay_timer > 0) delay_timer--;
+            if (sound_timer > 0) sound_timer--;
+            last_timer_update += std::chrono::duration_cast<clock::duration>(timer_interval);
+        }
+        
+        // Handle input
         InputEvent ev = input.poll();
         keypad = ev.keypad_state; 
-        if (ev.quit) {
-            break;
-        }
+        if (ev.quit) break;
         if (ev.restart) {
             this->restart(program);
+            last_timer_update = clock::now();
+            continue;
         }
 
-        // 2) Emulate one instruction
+        // Execute one instruction
         const uint16_t instruction = fetch();
         decodeAndExecute(instruction);
-
-        std::this_thread::sleep_for(
-            std::chrono::nanoseconds(1'000'000'000 / 700));
+        
+        // Sleep to maintain 700Hz
+        auto elapsed = clock::now() - cycle_start;
+        if (elapsed < cpu_interval) {
+            std::this_thread::sleep_for(cpu_interval - elapsed);
+        }
     }
 }
 
@@ -130,32 +148,39 @@ void CPU::decodeAndExecute(uint16_t opcode){
                         registers[x] ^= registers[y];
                         break;
                     }
+                    // 4, 7
                     case 0x4: {
                         uint8_t sum = registers[x] + registers[y];
-                        if (sum < registers[x]) registers[0xF] = 1; // overflow
+                        byte flag = sum < registers[x] ? 1 : 0;
                         registers[x] = sum;
+                        registers[0xF] = flag;
                         break;
                     }
                     case 0x5: {
-                        if (registers[x] > registers[y]) registers[0xF] = 1;
+                        byte flag = registers[x] >= registers[y] ? 1 : 0;
                         registers[x] -= registers[y];
+                        registers[0xF] = flag;
                         break;
                     }
                     case 0x6: {
-                        registers[0xF] = registers[x] & 1;
+                        byte flag = registers[x] & 1;
                         registers[x] >>= 1;
+                        registers[0xF] = flag;
                         break;
                     }
 
                     case 0x7: {
-                        if (registers[y] > registers[x]) registers[0xF] = 1;
-                        registers[y] -= registers[x];
+                        byte flag = registers[y] >= registers[x] ? 1 : 0;
+                        registers[x] = registers[y] - registers[x];
+                        registers[0xF] = flag;
                         break;
                     }
+
                     
                     case 0xE: {
-                        registers[0xF] = (registers[x] & (1 << 7)) >> 7;
-                        registers[x] >>= 1;
+                        byte flag = (registers[x] & (1 << 7)) >> 7;
+                        registers[x] <<= 1;
+                        registers[0xF] = flag;
                         break;
                     }
                 }
@@ -243,11 +268,12 @@ void CPU::decodeAndExecute(uint16_t opcode){
                     case 0x1E:
                         i += registers[x];
                         break;
-                    case 0x29:
+                    case 0x29: {
                         uint16_t nibble = registers[x] & 0x0F;
                         i = constants::FontStart + (nibble * 5);
                         break;
-                    case 0x33:
+                    }
+                    case 0x33: {
                         uint16_t tmp = registers[x];
                         memory[i + 2] = tmp % 10;
                         tmp /= 10;
@@ -255,16 +281,19 @@ void CPU::decodeAndExecute(uint16_t opcode){
                         tmp /= 10;
                         memory[i] = tmp % 10;
                         break;
-                    case 0x55:
+                    }
+                    case 0x55: {
                         for (size_t idx = 0; idx <= x; ++idx) {
                             memory[i + idx] = registers[idx];
                         }
                         break;
-                    case 0x65:
+                    }
+                    case 0x65: {
                         for (size_t idx = 0; idx <= x; ++idx) {
                             registers[idx] = memory[i + idx];
                         }
                         break;
+                    }
 
                 }
                 break;
