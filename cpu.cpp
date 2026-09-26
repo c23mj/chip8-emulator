@@ -5,6 +5,8 @@
 #include <chrono> 
 #include <random>
 #include <span>
+#include <algorithm>
+#include <iostream>
 using byte = uint8_t; // ensure unsigned
 
 uint8_t randomByte() {
@@ -30,47 +32,101 @@ void CPU::restart(std::vector<byte>& program){
     loadFontToMemory();
     loadProgram(program);
 }
-void CPU::boot(std::vector<byte>& program) {
+void CPU::boot(std::vector<byte>& program, unsigned instructions_per_second, bool profile) {
     loadProgram(program);
     pc = constants::ProgramStart;
 
     using clock = std::chrono::steady_clock;
-    using duration = std::chrono::duration<double>;
-    
     const auto timer_interval = std::chrono::duration<double>(1.0 / 60.0);
-    const auto cpu_interval = std::chrono::duration<double>(1.0 / 7000.0);
-    
-    auto last_timer_update = clock::now();
+    const auto cpu_interval = std::chrono::duration<double>(1.0 / instructions_per_second);
+    const auto frame_interval = timer_interval;
+
+    auto last_update = clock::now();
+    auto cpu_elapsed = std::chrono::duration<double>::zero();
+    auto timer_elapsed = std::chrono::duration<double>::zero();
+    auto frame_elapsed = frame_interval;
+    bool restart_held = false;
+    auto profile_start = last_update;
+    unsigned long long profile_cycles = 0;
+    unsigned profile_frames = 0;
+    double profile_commands_ms = 0;
+    double profile_present_ms = 0;
+    double profile_max_draw_ms = 0;
+    if (profile) std::cerr << "SDL renderer: " << window.rendererName() << '\n';
 
     while (window.alive()) {
-        auto cycle_start = clock::now();
-        
-        // Update timers at 60Hz
-        if (clock::now() - last_timer_update >= timer_interval) {
-            if (delay_timer > 0) delay_timer--;
-            if (sound_timer > 0) sound_timer--;
-            last_timer_update += std::chrono::duration_cast<clock::duration>(timer_interval);
-        }
-        
-        // Handle input
+        const auto now = clock::now();
+        const auto elapsed = now - last_update;
+        last_update = now;
+        cpu_elapsed += elapsed;
+        timer_elapsed += elapsed;
+        frame_elapsed += elapsed;
+
         InputEvent ev = input.poll();
         keypad = ev.keypad_state; 
         if (ev.quit) break;
-        if (ev.restart) {
+        if (ev.restart && !restart_held) {
             this->restart(program);
-            last_timer_update = clock::now();
-            continue;
+            delay_timer = 0;
+            sound_timer = 0;
+            cpu_elapsed = std::chrono::duration<double>::zero();
+            timer_elapsed = std::chrono::duration<double>::zero();
+            frame_elapsed = frame_interval;
+        }
+        restart_held = ev.restart;
+
+        while (timer_elapsed >= timer_interval) {
+            if (delay_timer > 0) --delay_timer;
+            if (sound_timer > 0) --sound_timer;
+            timer_elapsed -= timer_interval;
         }
 
-        // Execute one instruction
-        const uint16_t instruction = fetch();
-        decodeAndExecute(instruction);
-        
-        // Sleep to maintain 700Hz
-        auto elapsed = clock::now() - cycle_start;
-        if (elapsed < cpu_interval) {
-            std::this_thread::sleep_for(cpu_interval - elapsed);
+        // Bound catch-up work after a long pause so input and rendering stay responsive.
+        unsigned cycles = 0;
+        while (cpu_elapsed >= cpu_interval && cycles < instructions_per_second / 10 + 1) {
+            const uint16_t instruction = fetch();
+            decodeAndExecute(instruction);
+            cpu_elapsed -= cpu_interval;
+            ++cycles;
         }
+        profile_cycles += cycles;
+        if (cpu_elapsed >= cpu_interval) cpu_elapsed = std::chrono::duration<double>::zero();
+
+        if (frame_elapsed >= frame_interval) {
+            DrawTiming timing;
+            window.draw(display, profile ? &timing : nullptr);
+            if (profile) {
+                ++profile_frames;
+                profile_commands_ms += timing.commands_ms;
+                profile_present_ms += timing.present_ms;
+                profile_max_draw_ms = std::max(profile_max_draw_ms,
+                                               timing.commands_ms + timing.present_ms);
+            }
+            frame_elapsed -= frame_interval;
+            if (frame_elapsed >= frame_interval) frame_elapsed = std::chrono::duration<double>::zero();
+        }
+
+        if (profile && clock::now() - profile_start >= std::chrono::seconds(1)) {
+            const auto report_time = clock::now();
+            const double seconds = std::chrono::duration<double>(report_time - profile_start).count();
+            std::cerr << "CPU " << profile_cycles / seconds << "/s (target "
+                      << instructions_per_second << "), frames " << profile_frames / seconds
+                      << "/s, draw commands " << profile_commands_ms / seconds
+                      << " ms/s, present " << profile_present_ms / seconds
+                      << " ms/s, max draw " << profile_max_draw_ms << " ms\n";
+            profile_start = report_time;
+            profile_cycles = 0;
+            profile_frames = 0;
+            profile_commands_ms = 0;
+            profile_present_ms = 0;
+            profile_max_draw_ms = 0;
+        }
+
+        const auto until_next = std::min({cpu_interval - cpu_elapsed,
+                                          timer_interval - timer_elapsed,
+                                          frame_interval - frame_elapsed});
+        if (until_next > std::chrono::duration<double>::zero())
+            std::this_thread::sleep_for(until_next);
     }
 }
 
@@ -221,7 +277,6 @@ void CPU::decodeAndExecute(uint16_t opcode){
                     if (++py >= constants::DisplayHeight) break;
                 }
 
-                window.draw(display);
                 break;
             }
             case 0xE000: {
@@ -317,4 +372,3 @@ void CPU::skipNextIf(bool cond){
         pc += 2;
     }
 }
-
