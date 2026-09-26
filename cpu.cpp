@@ -6,7 +6,6 @@
 #include <random>
 #include <span>
 #include <algorithm>
-#include <iostream>
 using byte = uint8_t; // ensure unsigned
 
 uint8_t randomByte() {
@@ -32,7 +31,7 @@ void CPU::restart(std::vector<byte>& program){
     loadFontToMemory();
     loadProgram(program);
 }
-void CPU::boot(std::vector<byte>& program, unsigned instructions_per_second, bool profile) {
+void CPU::boot(std::vector<byte>& program, unsigned instructions_per_second) {
     loadProgram(program);
     pc = constants::ProgramStart;
 
@@ -46,14 +45,6 @@ void CPU::boot(std::vector<byte>& program, unsigned instructions_per_second, boo
     auto timer_elapsed = std::chrono::duration<double>::zero();
     auto frame_elapsed = frame_interval;
     bool restart_held = false;
-    auto profile_start = last_update;
-    unsigned long long profile_cycles = 0;
-    unsigned profile_frames = 0;
-    double profile_commands_ms = 0;
-    double profile_present_ms = 0;
-    double profile_max_draw_ms = 0;
-    if (profile) std::cerr << "SDL renderer: " << window.rendererName() << '\n';
-
     while (window.alive()) {
         const auto now = clock::now();
         const auto elapsed = now - last_update;
@@ -89,37 +80,12 @@ void CPU::boot(std::vector<byte>& program, unsigned instructions_per_second, boo
             cpu_elapsed -= cpu_interval;
             ++cycles;
         }
-        profile_cycles += cycles;
         if (cpu_elapsed >= cpu_interval) cpu_elapsed = std::chrono::duration<double>::zero();
 
         if (frame_elapsed >= frame_interval) {
-            DrawTiming timing;
-            window.draw(display, profile ? &timing : nullptr);
-            if (profile) {
-                ++profile_frames;
-                profile_commands_ms += timing.commands_ms;
-                profile_present_ms += timing.present_ms;
-                profile_max_draw_ms = std::max(profile_max_draw_ms,
-                                               timing.commands_ms + timing.present_ms);
-            }
+            window.draw(display);
             frame_elapsed -= frame_interval;
             if (frame_elapsed >= frame_interval) frame_elapsed = std::chrono::duration<double>::zero();
-        }
-
-        if (profile && clock::now() - profile_start >= std::chrono::seconds(1)) {
-            const auto report_time = clock::now();
-            const double seconds = std::chrono::duration<double>(report_time - profile_start).count();
-            std::cerr << "CPU " << profile_cycles / seconds << "/s (target "
-                      << instructions_per_second << "), frames " << profile_frames / seconds
-                      << "/s, draw commands " << profile_commands_ms / seconds
-                      << " ms/s, present " << profile_present_ms / seconds
-                      << " ms/s, max draw " << profile_max_draw_ms << " ms\n";
-            profile_start = report_time;
-            profile_cycles = 0;
-            profile_frames = 0;
-            profile_commands_ms = 0;
-            profile_present_ms = 0;
-            profile_max_draw_ms = 0;
         }
 
         const auto until_next = std::min({cpu_interval - cpu_elapsed,

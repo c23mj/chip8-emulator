@@ -15,7 +15,7 @@ public:
     CPU();
 
     // Boot the CPU with a program (vector of bytes)
-    void boot(std::vector<byte>& program, unsigned instructions_per_second = 6000, bool profile = false);
+    void boot(std::vector<byte>& program, unsigned instructions_per_second = 6000);
 
 private:
     // Fetch next 2-byte opcode, advance PC

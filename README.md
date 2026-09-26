@@ -11,15 +11,10 @@ cmake --build build
 ```
 
 The CPU defaults to 6,000 instructions per second, matching the CHIP-8 Archive's
-100 cycles per 60 Hz frame setting for `spacejam.ch8`. The archive specifies
-1,000 cycles per frame for `1dcell.ch8`, so run that ROM with
-`./chip8 1dcell.ch8 60000`. Pass an instruction rate as the second argument
-for other ROMs. Timers and the display update at 60 Hz independently of the
-instruction rate.
-
-To measure speed, run `./chip8 spacejam.ch8 --profile`. Once per second it prints
-the actual instruction and frame rates, time spent drawing pixels, and time spent
-presenting the frame.
+100 cycles per 60 Hz frame setting for `spacejam.ch8`. To choose a different
+instruction rate, pass a positive integer as the second argument. For example,
+`./chip8 spacejam.ch8 12000` runs at 12,000 instructions per second. Timers and
+the display update at 60 Hz independently of the instruction rate.
 
 <p align="center">
   <img

@@ -3,7 +3,6 @@
 #include <stdexcept>
 #include <string>
 #include <algorithm>
-#include <chrono>
 
 struct Window::Impl {
     SDL_Window*   win   = nullptr;
@@ -45,15 +44,10 @@ bool Window::alive() const {
     return impl_ != nullptr;
 }
 
-const char* Window::rendererName() const {
-    return SDL_GetRendererName(impl_->ren);
-}
-
-bool Window::draw(std::span<const byte> bits, DrawTiming* timing) {
+bool Window::draw(std::span<const byte> bits) {
     if (!impl_) return false;
     const int gridW = impl_->gridW, gridH = impl_->gridH;
     if ((int)bits.size() != gridW * gridH) return false;
-    const auto start = std::chrono::steady_clock::now();
 
     // 1) compute integer scale + centering (crisp pixels)
     int outW = 0, outH = 0;
@@ -84,12 +78,6 @@ bool Window::draw(std::span<const byte> bits, DrawTiming* timing) {
         }
     }
 
-    const auto before_present = std::chrono::steady_clock::now();
     SDL_RenderPresent(impl_->ren);
-    if (timing) {
-        const auto end = std::chrono::steady_clock::now();
-        timing->commands_ms = std::chrono::duration<double, std::milli>(before_present - start).count();
-        timing->present_ms = std::chrono::duration<double, std::milli>(end - before_present).count();
-    }
     return true;
 }
